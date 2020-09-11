@@ -19,14 +19,23 @@ The variant facet will create a nested query to retrieve only the values request
 ## A complete example
 
 Person object: Type=Person, Name=Wim, Country=NL, ID=12
+
 Person object: Type=Person, Name=Peter, Country=USA, ID=13
+
 Person object: Type=Person, Name=Annie, Country=NL, ID=14
+
 Education object: Type=Education, ID=12, School=Alabama University, Year=1969, Degree=MBA
+
 Education object: Type=Education, ID=12, School=NY University, Year=1989, Degree=Doctor
+
 Education object: Type=Education, ID=13, School=NY University, Year=1979, Degree=Bachelor
+
 Education object: Type=Education, ID=13, School=NY University, Year=1989, Degree=MBA
+
 Education object: Type=Education, ID=13, School=NY University, Year=1999, Degree=Doctor
+
 Education object: Type=Education, ID=14, School=SF University, Year=1989, Degree=MBA
+
 
 1. No Query, Variant facet will use:
   * queryOverride: [[idField] childQuery]
@@ -69,10 +78,10 @@ First enable the component in your page:
 
 Then for your variant facets:
 ```html
-            <div class="CoveoFacet" data-title="Amenities" data-field="@myamenities" ></div>
-            <div class="CoveoFacet" data-title="Bed type" data-field="@mybedtype" ></div>
-            <div class="CoveoFacet" data-title="Reviewed by Profile" data-variant='true' data-field="@myratingtype" ></div>
-            <div class="CoveoFacet" data-title="Reviewed by Age" data-variant='true' data-field="@myratingage" ></div>
+<div class="CoveoFacet" data-title="Amenities" data-field="@myamenities" ></div>
+<div class="CoveoFacet" data-title="Bed type" data-field="@mybedtype" ></div>
+<div class="CoveoFacet" data-title="Reviewed by Profile" data-variant='true' data-field="@myratingtype" ></div>
+<div class="CoveoFacet" data-title="Reviewed by Age" data-variant='true' data-field="@myratingage" ></div>
 ```
 Add the `data-variant='true'` to your properties.
 
