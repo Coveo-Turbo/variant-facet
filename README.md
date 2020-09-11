@@ -1,4 +1,4 @@
-# variant-facet
+# variant-facet, implemented using VariantFacetManager
 
 In a scenario were all the information is not stored into a single object inside the index, you might want to show facets depending on child objects.
 
@@ -14,7 +14,9 @@ If we would simply index Size, Color, Width as multi value fields then you would
 
 The variant facet will create a nested query to retrieve only the values requested.
 
-A complete example:
+*** Important: Use the same fieldname for the Parent & Child ID's ***
+
+## A complete example
 
 Person object: Type=Person, Name=Wim, Country=NL, ID=12
 Person object: Type=Person, Name=Peter, Country=USA, ID=13
@@ -28,92 +30,51 @@ Education object: Type=Education, ID=14, School=SF University, Year=1989, Degree
 
 1. No Query, Variant facet will use:
   * queryOverride: [[idField] childQuery]
-  * advancedQueryOverride: advancedExpression ("")
-  * constantQueryOverride: constantExpression ("")
-2. Query
+2. Query, Variant facet will use:
   * queryOverride: QUERY [[idField] childQuery]
-  * advancedQueryOverride: advancedExpression ("")
-  * constantQueryOverride: constantExpression ("")
 3. Query, Normal facet selected
   * advancedQuery: @country==NL (this is on the parent object)
   * queryOverride: QUERY [[idField] childQuery]
-  * advancedQueryOverride: advancedQuery (@country==NL)
-  * constantQueryOverride: constantExpression ("")
 4. Query, Normal Facets selected.
   * advancedQuery: @country==NL @region==FL (this is on the parent object)
   * queryOverride: QUERY [[idField] childQuery]
-  * advancedQueryOverride: advancedQuery (@country==NL @region==FL)
-  * constantQueryOverride: constantExpression ("")
 5. Query, Normal Facets selected and Variant selected.
   * by default advancedQuery ==> @country==NL @region==FL @school=="NY University"
   * if Variant facet in advancedQuery then rewrite advancedQuery to:
   * advancedQuery: @country==NL @region==FL (this is on the parent object) [[idField] @school=="NY University" childQuery] (this is on the child)
   * queryOverride: QUERY [[idField] childQuery advancedQuery(nested part only)]
-  * advancedQueryOverride: advancedQuery (@country==NL @region==FL), only from parent
-  * constantQueryOverride: constantExpression ("")
 6. Query, Normal Facets selected and Variants selected.
   * by default advancedQuery ==> @country==NL @region==FL @school=="NY University" @degree=="MBA" 
   * if Variant facet in advancedQuery then rewrite advancedQuery to:
   * advancedQuery: @country==NL @region==FL (this is on the parent object) [[idField] @school=="NY University" @degree=="MBA" childQuery] (this is on the child)
   * queryOverride: QUERY [[idField] childQuery advancedQuery(nested part only)]
-  * advancedQueryOverride: advancedQuery (@country==NL @region==FL), only from parent
-  * constantQueryOverride: constantExpression ("")
 
-We only need a VariantFacetManager
-  * In steps:
-    * School variant
-    * @country==NL @region==FL @school=="NY University" @degree=="MBA" 
-    * rewrite to: @country==NL @region==FL @degree=="MBA" [[idField] @school=="NY University" childQuery] 
-    * Degree variant
-    * @country==NL @region==FL @degree=="MBA" [[idField] @school=="NY University" childQuery]  
-    * rewrite to: @country==NL @region==FL  [[idField] @school=="NY University" @degree=="MBA" childQuery] 
-    * Now we have a proper AdvancedQuery for the SEARCH
-    * Now we need to change the advancedQuery for the Facets
-    * For each facet:
-    *    Add the new advancedQuery
-    *    FIX THE FACET INSTANCE
-    *  If Variant facet:
-    *    advancedQuery: is empty
-    *    variantQuery: selectedValues of current facet
-    *    queryOverride: childQuery variantQuery [[idField] new advancedQuery]
-    *    FIX THE FACET INSTANCE
+## Options
+VariantFacetManager must be configured using the following options:
 
+| Option | Required | Type | Default | Notes |
+| --- | --- | --- | --- | --- |
+| `parentQuery` | Yes | string |  | The parent query for the parent object (like `@objecttype==person`) |
+| `childQuery` | Yes | string |  | The child query for the child object (like `@objecttype==education`) |
+| `idField` | Yes | string |  | The field to use as the unique field to bind the parent and child together |
 
+## Usage
 
-VariantFacet should:
-* DoneBuildingQuery (access to basic expression, change the groupbyrequest)
-  * Change the advancedExpression 
-  * Change GroupbyRequest queryOverride
+First enable the component in your page:
+```html
+<div class="CoveoVariantFacetManager" data-parent-query="@objecttype==house" data-child-query="@objecttype==rating" data-id-field="@myhouseid"></div>
+```
 
-|------|------------------------|-----------------------|------------------------|
-|Facet | No Query               | Normal Facet Selected | Variant Facet Selected |
-|------|------------------------|-----------------------|------------------------|
-|Country| -                     | @country==NL          | @country==NL           |
-|AQ     |                       |                       | @country==NL [[idField] @school=="NY University" @degree=="MBA" childQuery] |
-|       |                       |                       | @country==NL [[idField] ALL_VARIANT_FACET_SELECTIONS childQuery] |
-|       |                       |                       | This will be automatically added to the normal facets |
-|School | cq = @type==Education | cq = @type==Education | cq = @type==Education |
-|       | aq = [[idField]]      | aq = @country==NL [[idField]] | aq = @country==NL [[idField] ADVANCEDEXPRESSION] |
-|       | q = ""                | q =  QUERY     | q = QUERY |
+*** Be aware `DynamicFacets` are not supported yet *** 
 
-I somehow need to hold the Variant Facets ... Like Francois is doing. 
-
-
-
-*** Important: Use the same fieldname for the Parent & Child ID's ***
-
-Using the variant facet we are now able to search for people who went to NY University and got a Doctor degree.
-It will create a (nested) query like:
-@type=person [[@id] @type==education @school=="NY University" @degree=="Doctor"]
-
-Test:
-@school includeInFreeText=true parentQuery="@type==person" childQuery="@type==education" idField="@id"
-@Year includeInFreeText=false  parentQuery="@type==person" childQuery="@type==education" idField="@id"
-@degree includeInFreeText=true  parentQuery="@type==person" childQuery="@type==education" idField="@id"
-as facets defined
-
-When i search for NY: 
-add dq: parentQuery [[idField] childQuery @school="QUERY"] OR @type=person [[idField] childQuery @degree="QUERY"]
+Then for your variant facets:
+```html
+            <div class="CoveoFacet" data-title="Amenities" data-field="@myamenities" ></div>
+            <div class="CoveoFacet" data-title="Bed type" data-field="@mybedtype" ></div>
+            <div class="CoveoFacet" data-title="Reviewed by Profile" data-variant='true' data-field="@myratingtype" ></div>
+            <div class="CoveoFacet" data-title="Reviewed by Age" data-variant='true' data-field="@myratingage" ></div>
+```
+Add the `data-variant='true'` to your properties.
 
 
 Disclaimer: This component was built by the community at large and is not an official Coveo JSUI Component. Use this component at your own risk.
@@ -131,13 +92,13 @@ npm i @coveops/variant-facet
 Typescript:
 
 ```javascript
-import { variant-facet, Ivariant-facetOptions } from '@coveops/variant-facet';
+import { VariantFacetManager, IVariantFacetManagerOptions } from '@coveops/variant-facet';
 ```
 
 Javascript
 
 ```javascript
-const variant-facet = require('@coveops/variant-facet').variant-facet;
+const VariantFacetManager = require('@coveops/variant-facet').VariantFacetManager;
 ```
 
 3. You can also expose the component alongside other components being built in your project.
@@ -151,7 +112,7 @@ export * from '@coveops/variant-facet'
 Place the component in your markup:
 
 ```html
-<div class="Coveovariant-facet"></div>
+<div class="CoveoVariantFacetManager" data-parent-query="@objecttype==house" data-child-query="@objecttype==rating" data-id-field="@myhouseid"></div>
 ```
 
 ## Extending
@@ -159,11 +120,11 @@ Place the component in your markup:
 Extending the component can be done as follows:
 
 ```javascript
-import { variant-facet, Ivariant-facetOptions } from "@coveops/variant-facet";
+import { VariantFacetManager, IVariantFacetManagerOptions } from "@coveops/variant-facet";
 
-export interface IExtendedvariant-facetOptions extends Ivariant-facetOptions {}
+export interface IExtendedVariantFacetManagerOptions extends IVariantFacetManagerOptions {}
 
-export class Extendedvariant-facet extends variant-facet {}
+export class ExtendedVariantFacetManager extends VariantFacetManager {}
 ```
 
 ## Contribute
